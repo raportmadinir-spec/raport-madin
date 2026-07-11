@@ -1,0 +1,179 @@
+<!-- FILE: input_nilai.html -->
+<style>
+  .table-glass-blue { border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.15); width: 100%; }
+  .table-glass-blue thead th { background: rgba(15, 23, 42, 0.85) !important; color: #f8fafc !important; font-weight: 600; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; border-bottom: 2px solid rgba(255,255,255,0.1); padding: 15px; }
+  .table-glass-blue tbody td { background: rgba(30, 41, 59, 0.6) !important; color: #f1f5f9 !important; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 10px 15px; vertical-align: middle; }
+  .table-glass-blue tbody tr:hover td { background: rgba(51, 65, 85, 0.8) !important; color: #ffffff !important; transition: 0.2s; }
+  
+  .input-nilai { background: rgba(255,255,255,0.95) !important; border: 2px solid transparent !important; border-radius: 8px; color: #0f172a; font-weight: 700; font-size: 1.1rem; text-align: center; width: 90px; transition: 0.2s; }
+  .input-nilai:focus { border-color: #0ea5e9 !important; box-shadow: 0 0 10px rgba(14, 165, 233, 0.5) !important; outline: none; transform: scale(1.05); }
+  
+  /* Sembunyikan panah up/down di input number */
+  .input-nilai::-webkit-outer-spin-button, .input-nilai::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .input-nilai[type=number] {-moz-appearance: textfield; }
+</style>
+<div class="row mb-3">
+  <div class="col-12 text-center text-md-start">
+    <h4 class="text-glass fw-bold mb-1">Input Nilai Santri</h4>
+    <p class="text-glass" style="opacity: 0.85; font-size: 0.85rem;">Input nilai Ujian Tengah Semester (UTS) dan Ujian Akhir Semester (UAS).</p>
+  </div>
+</div>
+<!-- PANEL FILTER -->
+<div class="card glass-card p-3 mb-4" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2);">
+  <div class="row g-3 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label text-white fw-medium mb-1" style="font-size: 0.85rem;">Tahun Ajaran</label>
+      <select id="filter_ta" class="form-select glass-input px-3 py-2 fw-medium"></select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label text-white fw-medium mb-1" style="font-size: 0.85rem;">Kelas / Rombel</label>
+      <select id="filter_kelas" class="form-select glass-input px-3 py-2 fw-medium">
+        <option value="">-- Pilih Kelas --</option>
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label text-white fw-medium mb-1" style="font-size: 0.85rem;">Mata Pelajaran</label>
+      <select id="filter_mapel" class="form-select glass-input px-3 py-2 fw-medium">
+        <option value="">-- Pilih Mapel --</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <!-- MENGGUNAKAN JURUS INLINE EVENT LISTENER -->
+      <button class="btn btn-warning w-100 fw-bold py-2 shadow-sm" onclick="window.fetchDataSiswaNilai()" style="border-radius: 8px;">
+        <i class="fa-solid fa-magnifying-glass me-1"></i> Tarik Data
+      </button>
+    </div>
+  </div>
+</div>
+<!-- PANEL TABEL INPUT -->
+<div class="card glass-card p-3 p-md-4 mb-5 d-none" id="panel-tabel" style="background: rgba(255,255,255,0.05); border: none;">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="alert alert-info border-0 shadow-sm mb-0 py-2" style="background: rgba(14, 165, 233, 0.2); color: #e0f2fe; width: 100%;">
+      <i class="fa-solid fa-circle-info me-2"></i> Ketik nilai (0 - 100). Kosongkan jika santri tidak mengikuti ujian.
+    </div>
+  </div>
+  <div class="table-responsive" style="width: 100%; overflow-x: auto;">
+    <table id="tabelNilai" class="table table-glass-blue w-100">
+      <thead>
+        <tr>
+          <th width="5%" class="text-center">No</th>
+          <th width="15%" class="text-center">NIS</th>
+          <th width="40%">Nama Lengkap Santri</th>
+          <th width="20%" class="text-center text-warning">NILAI UTS</th>
+          <th width="20%" class="text-center text-success">NILAI UAS</th>
+        </tr>
+      </thead>
+      <tbody id="data-nilai-body"></tbody>
+    </table>
+  </div>
+  
+  <div class="mt-4 text-end border-top border-secondary border-opacity-25 pt-4">
+    <button class="btn btn-primary fw-bold shadow-lg px-5 py-3" onclick="window.simpanDataNilai()" id="btnSimpanNilai" style="background: linear-gradient(135deg, #10b981, #059669); border: none; border-radius: 12px; font-size: 1.1rem;">
+      <i class="fa-solid fa-floppy-disk me-2"></i> SIMPAN SEMUA NILAI
+    </button>
+  </div>
+</div>
+<script>
+(function() {
+  
+  var selectTA = document.getElementById('filter_ta');
+  var currentYear = new Date().getFullYear(); 
+  var htmlTA = '';
+  for(var year = 2024; year <= 2050; year++) {
+    var nextYear = year + 1;
+    var optionText = year + '/' + nextYear;
+    var isSelected = (year === currentYear) ? 'selected' : '';
+    htmlTA += '<option value="' + optionText + '" ' + isSelected + '>' + optionText + '</option>';
+  }
+  selectTA.innerHTML = htmlTA;
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if(res.status === 'success') {
+        var htmlK = '<option value="">-- Pilih Kelas --</option>';
+        res.kelas.forEach(function(k) { htmlK += '<option value="' + k.id_kelas + '">' + k.nama_kelas + '</option>'; });
+        document.getElementById('filter_kelas').innerHTML = htmlK;
+        var htmlM = '<option value="">-- Pilih Mapel --</option>';
+        res.mapel.forEach(function(m) { htmlM += '<option value="' + m.id_mapel + '">' + m.nama_mapel + '</option>'; });
+        document.getElementById('filter_mapel').innerHTML = htmlM;
+      }
+    })
+    .getInitNilai();
+    
+  window.fetchDataSiswaNilai = function() {
+    var ta = document.getElementById('filter_ta').value;
+    var idKelas = document.getElementById('filter_kelas').value;
+    var idMapel = document.getElementById('filter_mapel').value;
+    if(!idKelas || !idMapel) {
+      Swal.fire('Perhatian', 'Pilih Kelas dan Mata Pelajaran terlebih dahulu!', 'warning');
+      return;
+    }
+    Swal.fire({ title: 'Menyiapkan Form...', background: 'rgba(15, 23, 42, 0.95)', color: '#fff', allowOutsideClick: false, didOpen: () => { Swal.showLoading() } });
+    google.script.run
+      .withSuccessHandler(function(res) {
+        Swal.close();
+        if(res.status === 'success') {
+          var html = '';
+          res.data.forEach(function(s, idx) {
+            html += '<tr>';
+            html += '<td class="text-center">' + (idx + 1) + '</td>';
+            html += '<td class="text-center fw-medium text-info">' + s.nis + '</td>';
+            html += '<td class="fw-bold" style="font-size: 0.95rem;">' + s.nama;
+            html += '<input type="hidden" class="inp-id-siswa" value="' + s.id_siswa + '"></td>';
+            html += '<td class="text-center"><input type="number" min="0" max="100" class="form-control mx-auto input-nilai inp-uts" value="' + s.nilai_uts + '"></td>';
+            html += '<td class="text-center"><input type="number" min="0" max="100" class="form-control mx-auto input-nilai inp-uas" value="' + s.nilai_uas + '"></td>';
+            html += '</tr>';
+          });
+          
+          document.getElementById('data-nilai-body').innerHTML = html;
+          document.getElementById('panel-tabel').classList.remove('d-none');
+        } else {
+          Swal.fire('Informasi', res.message, 'info');
+          document.getElementById('panel-tabel').classList.add('d-none');
+        }
+      })
+      .getSiswaDanNilai(ta, idKelas, idMapel);
+  };
+  
+  window.simpanDataNilai = function() {
+    var ta = document.getElementById('filter_ta').value;
+    var idKelas = document.getElementById('filter_kelas').value;
+    var idMapel = document.getElementById('filter_mapel').value;
+    
+    var arrNilai = [];
+    var rows = document.querySelectorAll('#data-nilai-body tr');
+    
+    rows.forEach(function(row) {
+      var idS = row.querySelector('.inp-id-siswa').value;
+      var valUts = row.querySelector('.inp-uts').value;
+      var valUas = row.querySelector('.inp-uas').value;
+      
+      arrNilai.push({
+        id_siswa: idS,
+        uts: valUts,
+        uas: valUas
+      });
+    });
+    
+    Swal.fire({
+      title: 'Simpan Nilai?', text: 'Pastikan nilai UTS dan UAS sudah sesuai.', icon: 'question', showCancelButton: true, confirmButtonColor: '#10b981', confirmButtonText: 'Ya, Simpan!', background: 'rgba(15, 23, 42, 0.95)', color: '#fff'
+    }).then(function(res) {
+      if(res.isConfirmed) {
+        var btn = document.getElementById('btnSimpanNilai');
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Menyimpan...';
+        btn.disabled = true;
+        google.script.run
+          .withSuccessHandler(function(response) {
+            btn.innerHTML = '<i class="fa-solid fa-floppy-disk me-2"></i> SIMPAN SEMUA NILAI';
+            btn.disabled = false;
+            if(response.status === 'success') {
+              Swal.fire({ icon: 'success', title: 'Tersimpan!', text: response.message, background: 'rgba(15, 23, 42, 0.95)', color: '#fff', confirmButtonColor: '#10b981' });
+            } else {
+              Swal.fire('Gagal', response.message, 'error');
+            }
+          })
+          .saveNilaiKolektif(ta, idKelas, idMapel, arrNilai);
+      }
+    });
+  };
+})();
+</script>
